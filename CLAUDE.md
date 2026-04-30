@@ -49,9 +49,16 @@ font2dataset/
 - Probability and intensity controlled via config YAML
 
 ### writer.py
-- Output formats: folder layout `label/image.png`, or HuggingFace `datasets`
-- Saves per-image records (character, unicode value, font file path) in JSONL / Parquet
+- Output layout: **flat** — all images under `output/images/`, index file alongside.
+- File naming: `{unicode_hex}_{font_stem}_{index}.png`
+  (e.g. `3042_NotoSansJP-Regular_000.png`)
+- Record format: **JSONL during generation** (streaming append), converted to **Parquet on completion**.
+- Minimum record fields per image:
+  ```json
+  {"file": "3042_NotoSansJP-Regular_000.png", "char": "あ", "unicode": "U+3042", "codepoint": 12354, "font_path": "fonts/NotoSansJP-Regular.ttf"}
+  ```
 - Does **not** store font attribute metadata (family name, weight, license, etc.)
+- HuggingFace `datasets` format: future work (priority 7).
 
 ### pipeline.py
 - Processes all combinations of charset × fonts × augmentations
