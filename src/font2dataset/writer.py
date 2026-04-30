@@ -1,13 +1,15 @@
-# REVIEW: pending
+# REVIEW: done
 
 """
 Write generated character images and metadata to disk.
 
 Coordinates image file I/O and metadata recording (JSONL + Parquet).
 Implements context manager protocol for clean setup/teardown.
+Thread-safe for concurrent calls to write().
 """
 
 import json
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Generator
@@ -39,6 +41,7 @@ class DatasetWriter:
         self._images_dir = self._output_dir / "images"
         self._jsonl_path = self._output_dir / "metadata.jsonl"
         self._jsonl_file = None
+        self._lock = threading.Lock()
 
     def open(self) -> None:
         """Create output directories and open JSONL file for writing.
@@ -80,11 +83,11 @@ class DatasetWriter:
         index_str = f"{index:03d}"
         filename = f"{unicode_hex}_{font_stem}_{index_str}.png"
 
-        # Save image
+        # Save image (thread-safe: unique filename per char/font/index)
         image_path = self._images_dir / filename
         image.save(image_path, format="PNG")
 
-        # Record metadata
+        # Record metadata (requires lock: shared JSONL file)
         codepoint = ord(char)
         record = {
             "file": filename,
@@ -93,8 +96,9 @@ class DatasetWriter:
             "codepoint": codepoint,
             "font_path": str(font_path),
         }
-        self._jsonl_file.write(json.dumps(record, ensure_ascii=False) + "\n")
-        self._jsonl_file.flush()
+        with self._lock:
+            self._jsonl_file.write(json.dumps(record, ensure_ascii=False) + "\n")
+            self._jsonl_file.flush()
 
         return filename
 
