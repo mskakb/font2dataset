@@ -27,7 +27,6 @@ font2dataset/
 ├── script/
 │   └── generate.py          # CLI entry point
 ├── tests/                   # automated test suite (pytest)
-├── main.py                  # simple example usage
 └── pyproject.toml
 ```
 
