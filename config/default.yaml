@@ -1,0 +1,22 @@
+# Default configuration for font2dataset pipeline
+
+# Character set specification
+# Can be: preset name (e.g. "ascii", "hiragana"), Unicode range (e.g. "U+0041-U+005A"), or literal string
+charset: ascii
+
+# Font directory containing TTF/OTF files
+font_dir: ./fonts
+
+# Output directory for generated dataset
+output_dir: ./output
+
+# Image rendering configuration
+image_size: [64, 64]      # [height, width] in pixels
+font_size: 48             # font size in pixels
+background: white         # background color (PIL color name or hex)
+foreground: black         # foreground (text) color
+padding: 4                # padding around glyph (pixels)
+overflow: skip            # how to handle glyphs that don't fit: skip | shrink | scale
+
+# Parallel processing
+workers: 4                # number of worker threads
