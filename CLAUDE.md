@@ -1,104 +1,114 @@
 # font2dataset
 
-TTF/OTFなどのフォントファイルからOCR・文字認識用の画像データセットを生成するツール。
+A tool for generating image datasets for OCR and character recognition from TTF/OTF font files.
+/ TTF/OTFなどのフォントファイルからOCR・文字認識用の画像データセットを生成するツール。
 
-## 目的
+## Purpose / 目的
 
-フォントファイルを使って文字画像を大量生成し、OCRモデルや文字認識モデルの学習データを作成する。日本語（ひらがな・カタカナ・漢字）を含む多言語文字集合に対応する。
+Batch-generate character images from font files to create training data for OCR and
+character recognition models. Supports multilingual character sets including Japanese
+(hiragana, katakana, kanji).
+/ フォントファイルを使って文字画像を大量生成し、OCRモデルや文字認識モデルの学習データを作成する。
 
-## ディレクトリ構成
+## Directory Structure / ディレクトリ構成
 
 ```
 font2dataset/
 ├── src/
 │   └── font2dataset/
 │       ├── __init__.py
-│       ├── renderer.py      # フォントを使った文字画像レンダリング
-│       ├── charset.py       # 文字集合の定義・管理
-│       ├── augment.py       # 画像拡張（ノイズ・回転など）
-│       ├── writer.py        # データセット書き出し（フォルダ / HuggingFace）
-│       └── pipeline.py      # 上記を統合するパイプライン
+│       ├── renderer.py      # character image rendering from fonts
+│       ├── charset.py       # character set definition and management
+│       ├── augment.py       # image augmentation (noise, rotation, etc.)
+│       ├── writer.py        # dataset output (folder / HuggingFace)
+│       └── pipeline.py      # integrates the above into a batch pipeline
 ├── config/
-│   └── default.yaml         # デフォルト設定
+│   └── default.yaml         # default configuration
+├── notebooks/               # learning notebooks
 ├── script/
-│   └── generate.py          # CLIエントリポイント
+│   └── generate.py          # CLI entry point
 ├── main.py
 └── pyproject.toml
 ```
 
-## 主要コンポーネント
+## Key Components / 主要コンポーネント
 
 ### renderer.py
-- `Pillow` を使ってフォントファイルから文字画像を描画
-- フォントサイズ・背景色・文字色をパラメータ化
-- 複数フォントを一括処理
+- Renders character images from font files using Pillow
+- Parameterises font size, background colour, foreground colour, and padding
+- Handles overflow via `skip` / `shrink` / `scale` modes
 
 ### charset.py
-- 文字集合の定義（ASCII, JIS第一水準, ひらがな, カタカナ など）
-- Unicode範囲指定による動的生成
-- フォントがグリフを持つか事前チェック（`fonttools` 使用）
+- Defines character sets (ASCII, hiragana, katakana, CJK, etc.)
+- Accepts preset names, Unicode range strings (`"U+XXXX-U+YYYY"`), or literal strings
+- Filters characters by font glyph coverage via `filter_by_font`
+- Note: `jis_level1` is **not** a built-in preset; use `cjk_common` or provide a literal list.
 
 ### augment.py
-- ランダム回転・ノイズ付加・ぼかしなどのオーグメンテーション
-- 適用率・強度をYAMLで制御
+- Augmentations: random rotation, noise, blur, etc.
+- Probability and intensity controlled via config YAML
 
 ### writer.py
-- 出力形式: `label/image.png` のフォルダ構成 または HuggingFace `datasets` 形式
-- メタデータ（フォント名・文字・unicode値）をJSONL/Parquetで保存
+- Output formats: folder layout `label/image.png`, or HuggingFace `datasets`
+- Saves per-image records (character, unicode value, font file path) in JSONL / Parquet
+- Does **not** store font attribute metadata (family name, weight, license, etc.)
 
 ### pipeline.py
-- charset × fonts × augments の全組み合わせを処理
-- `tqdm` で進捗表示
-- マルチプロセス対応（`concurrent.futures`）
+- Processes all combinations of charset × fonts × augmentations
+- Progress via `tqdm`; parallel execution via `concurrent.futures`
 
-## 設定ファイル (config/default.yaml)
+## Configuration File / 設定ファイル (config/default.yaml)
 
 ```yaml
-charset: jis_level1        # 使用文字集合
-font_dir: ./fonts          # フォントファイルのディレクトリ
-image_size: [64, 64]       # 出力画像サイズ (H, W)
-font_size: 48              # フォントサイズ (px)
-background: white          # 背景色
-foreground: black          # 文字色
-padding: 4                 # 文字周囲のパディング
-output_dir: ./output       # 出力先
+charset: hiragana          # preset name, "U+XXXX-U+YYYY", or literal string
+font_dir: ./fonts          # directory containing font files
+image_size: [64, 64]       # output image size (H, W)
+font_size: 48              # font size (px)
+background: white          # background colour
+foreground: black          # foreground colour
+padding: 4                 # padding around the glyph
+overflow: skip             # skip | shrink | scale
+output_dir: ./output       # output destination
 output_format: folder      # folder | huggingface
 augmentation:
   enabled: false
   rotation_max: 5.0
   noise_std: 0.02
-workers: 4                 # 並列ワーカー数
+  seed: 42                 # random seed for reproducibility
+workers: 4                 # parallel worker count
 ```
 
-## 依存ライブラリ
+## Dependencies / 依存ライブラリ
 
-| ライブラリ | 用途 |
-|-----------|------|
-| Pillow | 画像描画 |
-| fonttools | グリフ存在チェック |
-| datasets | HuggingFace形式出力 |
-| tqdm | プログレスバー |
-| pyyaml | 設定ファイル読み込み |
-| numpy | ノイズ生成など |
+| Library | Purpose |
+|---------|---------|
+| Pillow | Image rendering |
+| fonttools | Glyph existence check |
+| datasets | HuggingFace format output |
+| tqdm | Progress bar |
+| pyyaml | Config file loading |
+| numpy | Noise generation, etc. |
 
-## 実装優先順位
+## Implementation Status / 実装状況
 
-1. `charset.py` — 文字集合の定義（ひらがな・カタカナ・ASCII）
-2. `renderer.py` — Pillowによる基本レンダリング
-3. `writer.py` — フォルダ形式への書き出し
-4. `pipeline.py` — 上記の統合・バッチ処理
-5. `config/default.yaml` + CLIエントリポイント
-6. `augment.py` — オーグメンテーション
-7. HuggingFace datasets形式への対応
+| Priority | Module | Status |
+|----------|--------|--------|
+| 1 | `charset.py` | ✅ Done |
+| 2 | `renderer.py` | ✅ Done |
+| 3 | `writer.py` | Not started |
+| 4 | `pipeline.py` | Not started |
+| 5 | `config/default.yaml` + CLI | Not started |
+| 6 | `augment.py` | Not started |
+| 7 | HuggingFace datasets output | Not started |
 
-## 使用例 (完成後)
+## Usage Example (after completion) / 使用例（完成後）
 
 ```bash
-# デフォルト設定で生成
+# Generate with default config
 python script/generate.py --config config/default.yaml
 
-# フォントディレクトリとcharsetを上書き
-python script/generate.py --font-dir ./myfonts --charset ascii
+# Override font directory and charset
+python script/generate.py --font-dir ./myfonts --charset hiragana
 ```
 
 ## Review Status Convention
@@ -158,8 +168,11 @@ Example: `3042_NotoSansJP-Regular_000.png` → U+3042 (あ), font file `NotoSans
   of the font file used for rendering, so the source can be traced later.
   / 生成画像には描画に使用したフォントファイルのパス（またはファイル名）を必ず記録する。
 
-## 注意事項
+## Notes / 注意事項
 
-- フォントファイルのライセンスに注意（生成データセットの配布可否に影響）
-- CJK文字は数千〜数万文字あるため、メモリとディスクの見積もりを事前に行う
-- グリフが存在しない文字はスキップし、スキップリストをログに出力する
+- Be mindful of font file licences — they affect whether the generated dataset can be distributed.
+  / フォントファイルのライセンスに注意（生成データセットの配布可否に影響）。
+- CJK character sets contain thousands to tens of thousands of characters; estimate memory
+  and disk usage in advance. / CJK文字は数千〜数万文字あるため、メモリとディスクの見積もりを事前に行う。
+- Characters without a glyph are skipped; the skip list is written to the log.
+  / グリフが存在しない文字はスキップし、スキップリストをログに出力する。

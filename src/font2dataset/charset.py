@@ -74,14 +74,20 @@ def build_charset(
     names: str | list[str],
     font_path: str | Path | None = None,
 ) -> tuple[list[str], list[str]]:
-    """Build a deduplicated character list from one or more preset names
-    (or a custom range string ``"U+XXXX-U+YYYY"``), then optionally filter
-    by font glyph coverage.
-    / プリセット名（複数可）から重複なしの文字リストを組み立て、フォントでフィルタする。
+    """Build a deduplicated character list, then optionally filter by font coverage.
+    / 重複なしの文字リストを組み立て、フォントでフィルタする。
+
+    Each element of ``names`` is interpreted in order:
+
+    1. Preset name (e.g. ``"hiragana"``)
+    2. Unicode range string (e.g. ``"U+3041-U+3097"``)
+    3. Literal characters — the string itself is iterated character by character.
+       (e.g. ``"あいうえお"`` or a single char ``"A"``)
+
+    / 各要素は①プリセット名、②Unicode範囲文字列、③リテラル文字列の順で解釈される。
 
     Args:
-        names:      A preset name, a list of preset names, or a range string
-                    like ``"U+3041-U+3097"``.
+        names:      A spec string, or a list of spec strings.
         font_path:  If provided, characters not covered by the font are removed.
                     / 指定時、フォントにグリフがない文字を除外する。
 
@@ -95,20 +101,21 @@ def build_charset(
     chars: list[str] = []
     seen: set[str] = set()
 
-    for name in names:
-        if name in _PRESETS:
-            candidates = get_preset(name)
-        elif name.upper().startswith("U+") and "-" in name:
-            # custom range string, e.g. "U+3041-U+3097" / カスタム範囲指定
-            parts = name.upper().split("-")
-            start = int(parts[0][2:], 16)
-            stop  = int(parts[1][2:], 16) + 1
-            candidates = from_range(start, stop)
+    for spec in names:
+        if spec in _PRESETS:
+            candidates = get_preset(spec)
+        elif (
+            spec.upper().startswith("U+")
+            and "-" in spec
+            and spec.upper().split("-", 1)[1].startswith("U+")
+        ):
+            # Unicode range string "U+XXXX-U+YYYY" / Unicode範囲指定
+            lo, hi = spec.upper().split("-", 1)
+            candidates = from_range(int(lo[2:], 16), int(hi[2:], 16) + 1)
         else:
-            raise ValueError(
-                f"Cannot parse charset spec {name!r}. "
-                f"Use a preset name or a range like 'U+3041-U+3097'."
-            )
+            # treat every character in the string as a literal / リテラル文字列
+            candidates = list(spec)
+
         for c in candidates:
             if c not in seen:
                 seen.add(c)
