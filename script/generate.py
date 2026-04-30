@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# REVIEW: done
+
 """
 CLI entry point for font2dataset: Generate character images from font files.
 

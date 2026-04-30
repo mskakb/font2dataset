@@ -19,15 +19,15 @@ font2dataset/
 │       ├── __init__.py
 │       ├── renderer.py      # character image rendering from fonts
 │       ├── charset.py       # character set definition and management
-│       ├── augment.py       # image augmentation (noise, rotation, etc.)
-│       ├── writer.py        # dataset output (folder / HuggingFace)
+│       ├── writer.py        # dataset output (flat JSONL + Parquet)
 │       └── pipeline.py      # integrates the above into a batch pipeline
 ├── config/
 │   └── default.yaml         # default configuration
 ├── notebooks/               # learning notebooks
 ├── script/
 │   └── generate.py          # CLI entry point
-├── main.py
+├── tests/                   # automated test suite (pytest)
+├── main.py                  # simple example usage
 └── pyproject.toml
 ```
 
@@ -44,10 +44,6 @@ font2dataset/
 - Filters characters by font glyph coverage via `filter_by_font`
 - Note: `jis_level1` is **not** a built-in preset; use `cjk_common` or provide a literal list.
 
-### augment.py
-- Augmentations: random rotation, noise, blur, etc.
-- Probability and intensity controlled via config YAML
-
 ### writer.py
 - Output layout: **flat** — all images under `output/images/`, index file alongside.
 - File naming: `{unicode_hex}_{font_stem}_{index}.png`
@@ -61,27 +57,22 @@ font2dataset/
 - HuggingFace `datasets` format: future work (priority 7).
 
 ### pipeline.py
-- Processes all combinations of charset × fonts × augmentations
-- Progress via `tqdm`; parallel execution via `concurrent.futures`
+- Processes all combinations of charset × fonts
+- Progress tracking via `tqdm`; parallel execution via `ThreadPoolExecutor`
+- Graceful error handling: individual font failures are logged and skipped
 
 ## Configuration File / 設定ファイル (config/default.yaml)
 
 ```yaml
-charset: hiragana          # preset name, "U+XXXX-U+YYYY", or literal string
+charset: ascii             # preset name, "U+XXXX-U+YYYY", or literal string
 font_dir: ./fonts          # directory containing font files
+output_dir: ./output       # output destination
 image_size: [64, 64]       # output image size (H, W)
 font_size: 48              # font size (px)
 background: white          # background colour
 foreground: black          # foreground colour
 padding: 4                 # padding around the glyph
 overflow: skip             # skip | shrink | scale
-output_dir: ./output       # output destination
-output_format: folder      # folder | huggingface
-augmentation:
-  enabled: false
-  rotation_max: 5.0
-  noise_std: 0.02
-  seed: 42                 # random seed for reproducibility
 workers: 4                 # parallel worker count
 ```
 
@@ -91,10 +82,17 @@ workers: 4                 # parallel worker count
 |---------|---------|
 | Pillow | Image rendering |
 | fonttools | Glyph existence check |
-| datasets | HuggingFace format output |
+| pyarrow | Parquet file I/O |
+| datasets | HuggingFace format output (future) |
 | tqdm | Progress bar |
 | pyyaml | Config file loading |
-| numpy | Noise generation, etc. |
+| numpy | Image processing, noise generation |
+
+**Dev Dependencies:**
+| Library | Purpose |
+|---------|---------|
+| pytest | Test execution framework |
+| pytest-cov | Code coverage reports |
 
 ## Implementation Status / 実装状況
 
@@ -104,7 +102,7 @@ workers: 4                 # parallel worker count
 | 2 | `renderer.py` | ✅ Done |
 | 3 | `writer.py` | ✅ Done |
 | 4 | `pipeline.py` | ✅ Done |
-| 5 | `config/default.yaml` + CLI | Not started |
+| 5 | `config/default.yaml` + CLI | ✅ Done |
 | 6 | `augment.py` | Out of scope (user handles augmentation) |
 | 7 | HuggingFace datasets output | Not started |
 

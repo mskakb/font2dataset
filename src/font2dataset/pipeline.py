@@ -1,4 +1,4 @@
-# REVIEW: pending
+# REVIEW: done
 
 """
 Pipeline: orchestrates batch generation of character images across fonts.
