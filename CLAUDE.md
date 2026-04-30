@@ -102,7 +102,7 @@ workers: 4                 # parallel worker count
 |----------|--------|--------|
 | 1 | `charset.py` | ✅ Done |
 | 2 | `renderer.py` | ✅ Done |
-| 3 | `writer.py` | Not started |
+| 3 | `writer.py` | ✅ Done |
 | 4 | `pipeline.py` | Not started |
 | 5 | `config/default.yaml` + CLI | Not started |
 | 6 | `augment.py` | Not started |
