@@ -122,6 +122,42 @@ Rules / 規則:
 - **Comments and Markdown**: English as the primary language; Japanese may be added as supplementary annotation. / コメントやMarkdownは英語を主体とし、補助的に日本語を追記してよい。
 - **Notebook output** (plot titles, axis labels, print statements): English only.
 
+## Pipeline Rules
+
+### ① Reproducibility / 再現性の保証
+Given the same config file and the same font directory, dataset generation must always
+produce the same output. Any stochastic step (e.g. augmentation) must accept an explicit
+random seed via the config.
+/ 同じ設定ファイルと同じフォントディレクトリを与えれば、常に同じデータセットが生成されること。
+乱数を使う処理はシードを設定ファイルで指定可能にする。
+
+### ② Batch Failure Policy / バッチ処理の障害方針
+Individual rendering failures (missing glyph, corrupt font, etc.) are logged and skipped.
+The pipeline must not abort on a single failure.
+/ 個別のレンダリング失敗はログに記録してスキップする。パイプライン全体は止めない。
+
+### ③ Config as Single Source of Truth / 設定ファイルが唯一の真実
+All generation parameters (image size, font size, charset, etc.) must come from the config
+file. Do not hardcode parameter values in pipeline or rendering code.
+/ 画像サイズ・フォントサイズ・文字集合などのパラメータはすべて設定ファイル経由で指定する。コード内にハードコードしない。
+
+### ④ Output File Naming / 出力ファイルの命名規則
+Generated image filenames must be unique and traceable. Use the format:
+```
+{unicode_hex}_{font_stem}_{index}.png
+```
+Example: `3042_NotoSansJP-Regular_000.png` → U+3042 (あ), font file `NotoSansJP-Regular.ttf`, index 0.
+/ ファイル名から Unicode・フォント・連番を追跡できるようにする。
+
+## Dataset Design Policy
+
+- **No metadata management.** Font attribute metadata (family name, weight, license, etc.)
+  is not stored by this tool. Metadata management is left to the repository user.
+  / フォントのメタデータ管理はこのツールでは行わない。管理はリポジトリ利用者に委ねる。
+- **Font file traceability.** Each generated image record must store the path (or filename)
+  of the font file used for rendering, so the source can be traced later.
+  / 生成画像には描画に使用したフォントファイルのパス（またはファイル名）を必ず記録する。
+
 ## 注意事項
 
 - フォントファイルのライセンスに注意（生成データセットの配布可否に影響）
