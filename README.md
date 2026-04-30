@@ -141,6 +141,32 @@ output/
 }
 ```
 
+## Web Viewer
+
+Browse generated images organized by font and Unicode block.
+
+### Launch the viewer
+
+```bash
+# First, install Flask and pandas (if not already installed)
+pip install flask pandas
+
+# Start the viewer server
+python viewer/app.py --output-dir ./output --port 5000
+
+# Open http://localhost:5000 in your browser
+```
+
+### Features
+
+- **Font filtering**: Select all fonts or individual fonts from the left sidebar
+- **Character type tabs**: Filter by Unicode block (ASCII, digits, uppercase, lowercase, hiragana, katakana, CJK, etc.)
+- **Text search**: Search by Unicode code (U+0041) or character ('A')
+- **Image grid**: Grid display with lazy loading
+- **Image details**: Click any image to see enlarged view with metadata
+- **Pagination**: 100 images per page
+- **Responsive design**: Works on desktop and mobile
+
 ## Project Structure
 
 ```
@@ -168,8 +194,11 @@ font2dataset/
 │   ├── test_writer.py
 │   ├── test_pipeline.py
 │   └── test_generate.py
+├── viewer/                    # web viewer for browsing images
+│   ├── app.py                 # Flask server
+│   └── templates/
+│       └── index.html         # frontend (HTML/CSS/JS)
 ├── fonts/                     # sample fonts (Apache-licensed)
-├── main.py                    # simple example script
 ├── pyproject.toml             # Python project metadata
 └── README.md
 ```
@@ -211,6 +240,8 @@ pytest tests/test_writer.py::TestDatasetWriter -v
 - **numpy** — Array operations
 
 ### Development
+- **flask** — Web viewer server
+- **pandas** — Data manipulation for viewer
 - **pytest** — Test framework
 - **pytest-cov** — Code coverage
 - **jupyter** — Interactive notebooks
