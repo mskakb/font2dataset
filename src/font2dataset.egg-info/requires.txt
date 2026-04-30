@@ -1,0 +1,6 @@
+datasets>=4.8.5
+fonttools>=4.62.1
+numpy>=2.4.4
+pillow>=12.2.0
+pyyaml>=6.0.3
+tqdm>=4.67.3

@@ -1,0 +1,9 @@
+README.md
+pyproject.toml
+src/font2dataset/__init__.py
+src/font2dataset/renderer.py
+src/font2dataset.egg-info/PKG-INFO
+src/font2dataset.egg-info/SOURCES.txt
+src/font2dataset.egg-info/dependency_links.txt
+src/font2dataset.egg-info/requires.txt
+src/font2dataset.egg-info/top_level.txt

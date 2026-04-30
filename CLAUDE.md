@@ -101,6 +101,27 @@ python script/generate.py --config config/default.yaml
 python script/generate.py --font-dir ./myfonts --charset ascii
 ```
 
+## Review Status Convention
+
+Every source file carries a status header immediately after any module-level docstring.
+/ 各ソースファイルはモジュールdocstringの直後にステータスヘッダを持つ。
+
+```python
+# REVIEW: pending   # human-written, not yet reviewed by Claude / 人手で作成、未レビュー
+# REVIEW: done      # reviewed and approved by Claude / Claudeレビュー済み
+```
+
+Rules / 規則:
+- New files written by hand start with `# REVIEW: pending`.
+- After a Claude review pass, the header is updated to `# REVIEW: done`.
+- Files with no header are treated as `pending`.
+
+## Language Convention
+
+- **Code** (identifiers, docstrings, type hints): English only.
+- **Comments and Markdown**: English as the primary language; Japanese may be added as supplementary annotation. / コメントやMarkdownは英語を主体とし、補助的に日本語を追記してよい。
+- **Notebook output** (plot titles, axis labels, print statements): English only.
+
 ## 注意事項
 
 - フォントファイルのライセンスに注意（生成データセットの配布可否に影響）
