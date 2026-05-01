@@ -22,3 +22,4 @@ bbox_method: textbbox     # bounding box method: textbbox | pixel
 
 # Parallel processing
 workers: 4                # number of worker threads
+recursive: false          # search font_dir recursively for font files

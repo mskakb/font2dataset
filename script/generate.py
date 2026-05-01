@@ -39,6 +39,7 @@ def _config_from_dict(d: dict) -> PipelineConfig:
         output_dir=d.get("output_dir", "./output"),
         render=render,
         workers=d.get("workers", 4),
+        recursive=d.get("recursive", False),
     )
 
 

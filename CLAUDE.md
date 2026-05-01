@@ -75,6 +75,7 @@ overflow: skip             # skip | shrink | scale
 min_font_size: 8           # lower bound for font size when overflow=shrink
 bbox_method: textbbox      # bounding box method: textbbox | pixel
 workers: 4                 # parallel worker count
+recursive: false           # search font_dir recursively for font files
 ```
 
 ## Dependencies / 依存ライブラリ

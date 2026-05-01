@@ -33,12 +33,14 @@ class PipelineConfig:
         output_dir: Output directory for images and metadata.
         render: Rendering configuration (image size, colors, etc.).
         workers: Number of parallel worker threads.
+        recursive: Search font_dir recursively for font files.
     """
     charset: str | list[str]
     font_dir: str | Path
     output_dir: str | Path = "./output"
     render: RenderConfig = field(default_factory=RenderConfig)
     workers: int = 4
+    recursive: bool = False
 
 
 @dataclass
@@ -60,12 +62,13 @@ class PipelineResult:
     elapsed_seconds: float
 
 
-def _collect_fonts(font_dir: str | Path) -> list[Path]:
+def _collect_fonts(font_dir: str | Path, recursive: bool = False) -> list[Path]:
     """Collect and sort font files deterministically."""
     font_dir = Path(font_dir)
+    pattern = "**/*" if recursive else "*"
     fonts = [
-        p for p in font_dir.iterdir()
-        if p.suffix.lower() in {".ttf", ".otf"}
+        p for p in font_dir.glob(pattern)
+        if p.is_file() and p.suffix.lower() in {".ttf", ".otf"}
     ]
     return sorted(fonts, key=lambda p: p.name)
 
@@ -143,7 +146,7 @@ def run_pipeline(config: PipelineConfig) -> PipelineResult:
     start_time = time.time()
 
     # Collect fonts in deterministic order
-    fonts = _collect_fonts(config.font_dir)
+    fonts = _collect_fonts(config.font_dir, recursive=config.recursive)
     logger.info("Starting pipeline: %d fonts, %d workers, charset=%r",
                 len(fonts), config.workers, config.charset)
 
