@@ -245,6 +245,92 @@ python script/generate.py \
   --font-dir ./fonts
 ```
 
+## Using the Generated Dataset
+
+### Loading with pandas
+
+```python
+import pandas as pd
+
+df = pd.read_parquet("output/dataset.parquet")
+# columns: file, char, unicode, codepoint, font_path
+```
+
+### Train / val / test split
+
+Split **by font**, not randomly. A random split leaks the same font
+across splits, causing inflated accuracy on unseen handwriting/images.
+
+```python
+from pathlib import Path
+import numpy as np
+
+fonts = df["font_path"].apply(lambda p: Path(p).stem).unique()
+rng = np.random.default_rng(seed=42)
+rng.shuffle(fonts)
+
+n = len(fonts)
+train_fonts = fonts[:int(n * 0.7)]
+val_fonts   = fonts[int(n * 0.7):int(n * 0.9)]
+test_fonts  = fonts[int(n * 0.9):]
+
+font_stem = df["font_path"].apply(lambda p: Path(p).stem)
+train_df = df[font_stem.isin(train_fonts)]
+val_df   = df[font_stem.isin(val_fonts)]
+test_df  = df[font_stem.isin(test_fonts)]
+```
+
+### PyTorch Dataset
+
+```python
+from pathlib import Path
+from PIL import Image
+import torch
+from torch.utils.data import Dataset
+
+class CharDataset(Dataset):
+    def __init__(self, df, image_dir, transform=None):
+        self.df = df.reset_index(drop=True)
+        self.image_dir = Path(image_dir)
+        self.transform = transform
+        # Map codepoint → class index
+        codepoints = sorted(df["codepoint"].unique())
+        self.label_map = {cp: i for i, cp in enumerate(codepoints)}
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx):
+        row = self.df.iloc[idx]
+        img = Image.open(self.image_dir / row["file"]).convert("RGB")
+        if self.transform:
+            img = self.transform(img)
+        label = self.label_map[row["codepoint"]]
+        return img, label
+```
+
+### Normalization
+
+Images are rendered in white-on-black or black-on-white 8-bit RGB.
+Use standard ImageNet-style normalization or grayscale:
+
+```python
+from torchvision import transforms
+
+transform = transforms.Compose([
+    transforms.Grayscale(),
+    transforms.ToTensor(),           # [0, 1]
+    transforms.Normalize((0.5,), (0.5,)),  # [-1, 1]
+])
+```
+
+### Caveats
+
+- Characters missing a glyph in a given font are **not generated** — class
+  counts vary across fonts. Check `df.groupby("char").size()` before training.
+- Font licenses govern whether the generated **dataset** can be distributed.
+  Verify licenses before publishing.
+
 ## Performance
 
 - **Rendering**: ~100-500 images/sec per font (depends on image size, font size)
