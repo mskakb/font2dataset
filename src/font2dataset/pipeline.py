@@ -16,6 +16,8 @@ from pathlib import Path
 
 from tqdm import tqdm
 
+from fontTools.ttLib import TTFont
+
 from .charset import build_charset
 from .renderer import FontRenderer, RenderConfig
 from .writer import DatasetWriter, WriterConfig
@@ -62,6 +64,24 @@ class PipelineResult:
     elapsed_seconds: float
 
 
+def _font_meta(font_path: Path) -> tuple[str, str]:
+    """Return (family, style) from a font's name table.
+
+    Name ID 1 = Font Family, Name ID 2 = Font Subfamily (Regular/Bold/…).
+    Falls back to empty string if a record is absent.
+    """
+    tt = TTFont(str(font_path), lazy=True)
+    names = tt["name"]
+
+    def _get(name_id: int) -> str:
+        rec = names.getName(name_id, 3, 1, 0x0409) or names.getName(name_id, 1, 0, 0)
+        return rec.toUnicode() if rec else ""
+
+    family, style = _get(1), _get(2)
+    tt.close()
+    return family, style
+
+
 def _collect_fonts(font_dir: str | Path, recursive: bool = False) -> list[Path]:
     """Collect and sort font files deterministically."""
     font_dir = Path(font_dir)
@@ -97,6 +117,9 @@ def _process_font(
     logger.debug("Processing font: %s (%d chars, %d skipped by charset)",
                  font_path.name, len(chars), len(charset_skipped))
 
+    # Extract font metadata once per font
+    font_family, font_style = _font_meta(font_path)
+
     # Render and write
     renderer = FontRenderer(str(font_path), config.render)
     render_skipped = []
@@ -108,7 +131,8 @@ def _process_font(
             render_skipped.append(char)
             continue
 
-        writer.write(char, image, str(font_path), index=0)
+        writer.write(char, image, str(font_path), index=0,
+                     font_family=font_family, font_style=font_style)
         images_written += 1
 
     if charset_skipped:

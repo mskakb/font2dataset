@@ -50,9 +50,10 @@ font2dataset/
 - Record format: **JSONL during generation** (streaming append), converted to **Parquet on completion**.
 - Minimum record fields per image:
   ```json
-  {"file": "3042_NotoSansJP-Regular_000.png", "char": "あ", "unicode": "U+3042", "codepoint": 12354, "font_path": "fonts/NotoSansJP-Regular.ttf"}
+  {"file": "3042_NotoSansJP-Regular_000.png", "char": "あ", "unicode": "U+3042", "codepoint": 12354, "font_path": "fonts/NotoSansJP-Regular.ttf", "font_family": "Noto Sans JP", "font_style": "Regular"}
   ```
-- Does **not** store font attribute metadata (family name, weight, license, etc.)
+- Stores ML-relevant font metadata (`font_family`, `font_style`) from the font's name table.
+- Does **not** store license, designer, or other administrative metadata.
 - HuggingFace `datasets` format: future work (priority 7).
 
 ### pipeline.py

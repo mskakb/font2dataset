@@ -137,7 +137,9 @@ output/
   "char": "A",
   "unicode": "U+0041",
   "codepoint": 65,
-  "font_path": "./fonts/Font-Regular.ttf"
+  "font_path": "./fonts/Font-Regular.ttf",
+  "font_family": "Font",
+  "font_style": "Regular"
 }
 ```
 

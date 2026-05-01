@@ -58,6 +58,8 @@ class DatasetWriter:
         image: Image,
         font_path: str | Path,
         index: int,
+        font_family: str = "",
+        font_style: str = "",
     ) -> str:
         """Save one character image and record metadata.
 
@@ -66,6 +68,8 @@ class DatasetWriter:
             image: Rendered character as PIL Image
             font_path: Path to the font file used for rendering
             index: Sequential index for this (char, font) pair
+            font_family: Font family name from the font's name table (e.g. "Noto Sans JP")
+            font_style: Font subfamily name from the font's name table (e.g. "Regular")
 
         Returns:
             Generated filename (e.g., "3042_NotoSansJP-Regular_000.png")
@@ -95,6 +99,8 @@ class DatasetWriter:
             "unicode": f"U+{codepoint:04X}",
             "codepoint": codepoint,
             "font_path": str(font_path),
+            "font_family": font_family,
+            "font_style": font_style,
         }
         with self._lock:
             self._jsonl_file.write(json.dumps(record, ensure_ascii=False) + "\n")

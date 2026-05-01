@@ -100,7 +100,7 @@ class TestDatasetWriter:
         with open(jsonl_path) as f:
             record = json.loads(f.readline())
 
-        required_fields = {"file", "char", "unicode", "codepoint", "font_path"}
+        required_fields = {"file", "char", "unicode", "codepoint", "font_path", "font_family", "font_style"}
         assert set(record.keys()) == required_fields
 
     def test_unicode_field_format(self, tmp_output, test_image):
