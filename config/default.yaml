@@ -17,6 +17,8 @@ background: white         # background color (PIL color name or hex)
 foreground: black         # foreground (text) color
 padding: 4                # padding around glyph (pixels)
 overflow: skip            # how to handle glyphs that don't fit: skip | shrink | scale
+min_font_size: 8          # lower bound for font size when overflow=shrink
+bbox_method: textbbox     # bounding box method: textbbox | pixel
 
 # Parallel processing
 workers: 4                # number of worker threads
