@@ -16,11 +16,9 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "flask",
     "jupyter>=1.1.1",
     "matplotlib>=3.10.9",
     "nbconvert>=7.17.1",
-    "pandas",
     "pytest>=8",
     "pytest-cov",
 ]
