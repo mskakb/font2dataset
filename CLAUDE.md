@@ -65,7 +65,7 @@ font2dataset/
 
 ```yaml
 charset: ascii             # preset name, "U+XXXX-U+YYYY", or literal string
-font_dir: ./fonts          # directory containing font files
+font_dir: ./fonts          # directory (or list of directories) containing font files
 output_dir: ./output       # output destination
 image_size: [64, 64]       # output image size (H, W)
 font_size: 48              # font size (px)

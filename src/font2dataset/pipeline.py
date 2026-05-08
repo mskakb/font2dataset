@@ -44,7 +44,7 @@ class PipelineConfig:
         recursive: Search font_dir recursively for font files.
     """
     charset: str | list[str]
-    font_dir: str | Path
+    font_dir: str | Path | list[str | Path]
     output_dir: str | Path = "./output"
     render: RenderConfig = field(default_factory=RenderConfig)
     workers: int = 4
@@ -92,7 +92,7 @@ def _save_config(config: "PipelineConfig", output_dir: Path) -> None:
     """Persist the effective config to output_dir/config.yaml for reproducibility."""
     d = {
         "charset": config.charset,
-        "font_dir": str(config.font_dir),
+        "font_dir": [str(d) for d in config.font_dir] if isinstance(config.font_dir, list) else str(config.font_dir),
         "output_dir": str(config.output_dir),
         "image_size": list(config.render.image_size),
         "font_size": config.render.font_size,
@@ -109,15 +109,17 @@ def _save_config(config: "PipelineConfig", output_dir: Path) -> None:
         yaml.dump(d, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
 
-def _collect_fonts(font_dir: str | Path, recursive: bool = False) -> list[Path]:
-    """Collect and sort font files deterministically."""
-    font_dir = Path(font_dir)
+def _collect_fonts(font_dir: str | Path | list[str | Path], recursive: bool = False) -> list[Path]:
+    """Collect and sort font files deterministically from one or more directories."""
+    dirs = [font_dir] if not isinstance(font_dir, list) else font_dir
     pattern = "**/*" if recursive else "*"
     fonts = [
-        p for p in font_dir.glob(pattern)
+        p
+        for d in dirs
+        for p in Path(d).glob(pattern)
         if p.is_file() and p.suffix.lower() in {".ttf", ".otf"}
     ]
-    return sorted(fonts, key=lambda p: p.name)
+    return sorted(set(fonts), key=lambda p: p.name)
 
 
 def _process_font(
