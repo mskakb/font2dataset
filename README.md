@@ -74,7 +74,10 @@ Edit `config/default.yaml` or pass CLI arguments:
 
 ```yaml
 charset: ascii              # preset name, Unicode range, or literal string
-font_dir: ./fonts           # directory containing TTF/OTF files
+font_dir: ./fonts           # single directory, or a list of directories:
+                            #   font_dir:
+                            #     - ./fonts_a
+                            #     - ./fonts_b
 output_dir: ./output        # output directory
 image_size: [64, 64]        # [height, width] in pixels
 font_size: 48               # font size in pixels
@@ -82,7 +85,10 @@ background: white           # background color (PIL color name)
 foreground: black           # text color
 padding: 4                  # padding around glyph (pixels)
 overflow: skip              # handling for oversized glyphs: skip | shrink | scale
+min_font_size: 8            # lower bound for font size when overflow=shrink
+bbox_method: textbbox       # bounding box method: textbbox | pixel
 workers: 4                  # number of parallel worker threads
+recursive: false            # search font_dir recursively for font files
 ```
 
 ## Character Set Specifications
@@ -126,6 +132,7 @@ output/
 │   ├── 0041_Font-Regular_000.png    # U+0041 'A'
 │   ├── 0042_Font-Regular_000.png    # U+0042 'B'
 │   └── ...
+├── config.yaml                      # effective config saved at generation time
 ├── metadata.jsonl                   # per-image records (during generation)
 └── metadata.parquet                 # final Parquet dataset (after completion)
 ```
