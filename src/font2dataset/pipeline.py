@@ -13,6 +13,7 @@ error handling and progress tracking.
 """
 
 import logging
+import shutil
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -198,9 +199,12 @@ def run_pipeline(config: PipelineConfig) -> PipelineResult:
     """
     start_time = time.time()
 
-    # Save effective config for reproducibility
+    # Clean output_dir to prevent stale images from prior runs
     output_dir = Path(config.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
+        logger.info("Cleared existing output directory: %s", output_dir)
+    output_dir.mkdir(parents=True)
     _save_config(config, output_dir)
 
     # Collect fonts in deterministic order
