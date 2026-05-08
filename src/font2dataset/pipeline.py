@@ -1,3 +1,7 @@
+
+
+
+
 # REVIEW: done
 
 """
@@ -13,6 +17,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
+
+import yaml
 
 from tqdm import tqdm
 
@@ -80,6 +86,27 @@ def _font_meta(font_path: Path) -> tuple[str, str]:
     family, style = _get(1), _get(2)
     tt.close()
     return family, style
+
+
+def _save_config(config: "PipelineConfig", output_dir: Path) -> None:
+    """Persist the effective config to output_dir/config.yaml for reproducibility."""
+    d = {
+        "charset": config.charset,
+        "font_dir": str(config.font_dir),
+        "output_dir": str(config.output_dir),
+        "image_size": list(config.render.image_size),
+        "font_size": config.render.font_size,
+        "background": config.render.background,
+        "foreground": config.render.foreground,
+        "padding": config.render.padding,
+        "overflow": config.render.overflow,
+        "min_font_size": config.render.min_font_size,
+        "bbox_method": config.render.bbox_method,
+        "workers": config.workers,
+        "recursive": config.recursive,
+    }
+    with open(output_dir / "config.yaml", "w", encoding="utf-8") as f:
+        yaml.dump(d, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
 
 def _collect_fonts(font_dir: str | Path, recursive: bool = False) -> list[Path]:
@@ -168,6 +195,11 @@ def run_pipeline(config: PipelineConfig) -> PipelineResult:
         PipelineResult with statistics and output path.
     """
     start_time = time.time()
+
+    # Save effective config for reproducibility
+    output_dir = Path(config.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    _save_config(config, output_dir)
 
     # Collect fonts in deterministic order
     fonts = _collect_fonts(config.font_dir, recursive=config.recursive)
