@@ -137,6 +137,9 @@ output/
 └── metadata.parquet                 # final Parquet dataset (after completion)
 ```
 
+> **Note:** The output directory is **deleted and recreated** at the start of each run.
+> Re-running with the same `output_dir` will overwrite all previous output.
+
 ### Metadata record format (JSON)
 ```json
 {
