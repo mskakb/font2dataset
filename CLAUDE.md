@@ -36,6 +36,11 @@ font2dataset/
 - Renders character images from font files using Pillow
 - Parameterises font size, background colour, foreground colour, and padding
 - Handles overflow via `skip` / `shrink` / `scale` modes
+- **Output images are NOT binarized.** Pillow's `draw.text()` applies anti-aliasing,
+  so glyph edges contain intermediate grey values. If strict binary pixels (0/255) are
+  required, apply thresholding after loading the image.
+  / 出力画像は**厳密な2値化なし**。Pillowのテキスト描画はアンチエイリアスを施すため、
+  文字輪郭に中間グレー値が含まれる。0/255の厳密な2値が必要な場合は利用側でしきい値処理を行う。
 
 ### charset.py
 - Defines character sets (ASCII, hiragana, katakana, CJK, etc.)

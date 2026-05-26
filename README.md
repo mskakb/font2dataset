@@ -342,6 +342,14 @@ transform = transforms.Compose([
   counts vary across fonts. Check `df.groupby("char").size()` before training.
 - Font licenses govern whether the generated **dataset** can be distributed.
   Verify licenses before publishing.
+- **Images are not binarized.** Pillow's text rendering applies anti-aliasing,
+  so glyph edges contain intermediate grey values, not strict 0/255 pixels.
+  Apply thresholding if your model or pipeline requires strictly binary input:
+  ```python
+  from PIL import Image
+  img = Image.open(path).convert("L")
+  img = img.point(lambda x: 0 if x < 128 else 255)
+  ```
 
 ## Performance
 
