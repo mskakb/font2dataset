@@ -108,8 +108,12 @@ def _save_config(config: "PipelineConfig", output_dir: Path) -> None:
         "workers": config.workers,
         "recursive": config.recursive,
         "save_png": config.writer.save_png,
+        "binarize_method": config.writer.binarize_method,
+        "binarize_threshold": config.writer.binarize_threshold,
         "sdf_format": config.writer.sdf_format,
         "sdf_max_dist": config.writer.sdf_max_dist,
+        "sdf_binarize_method": config.writer.sdf_binarize_method,
+        "sdf_binarize_threshold": config.writer.sdf_binarize_threshold,
     }
     with open(output_dir / "config.yaml", "w", encoding="utf-8") as f:
         yaml.dump(d, f, allow_unicode=True, default_flow_style=False, sort_keys=False)

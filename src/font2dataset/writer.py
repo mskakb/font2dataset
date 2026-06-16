@@ -20,6 +20,7 @@ import pyarrow.parquet as pq
 from PIL import Image as _PIL
 from PIL.Image import Image
 
+from .binarize import compute_threshold
 from .sdf import binary_image_to_sdf
 
 
@@ -28,8 +29,14 @@ class WriterConfig:
     """Configuration for dataset output."""
     output_dir: str | Path = "./output"
     save_png: bool = True
+    # PNG binarization (independent from SDF)
+    binarize_method: Literal["none", "threshold", "otsu"] = "none"
+    binarize_threshold: float = 0.5
     sdf_format: Literal["none", "npy", "png", "both"] = "none"
     sdf_max_dist: float = 10.0
+    # SDF stroke-detection binarization (independent from PNG)
+    sdf_binarize_method: Literal["threshold", "otsu"] = "threshold"
+    sdf_binarize_threshold: float = 0.5
 
 
 class DatasetWriter:
@@ -100,16 +107,27 @@ class DatasetWriter:
         stem = f"{unicode_hex}_{font_stem}_{index_str}"
         filename = f"{stem}.png"
 
-        # Save regular PNG
-        if cfg.save_png:
-            image.save(self._images_dir / filename, format="PNG")
+        # Grayscale view of the original anti-aliased image (SDF always uses this)
+        gray = image.convert("L")
 
-        # Save SDF
+        # Save regular PNG (optionally binarized; luminance-based, polarity-preserving)
+        if cfg.save_png:
+            if cfg.binarize_method != "none":
+                gray01 = np.asarray(gray, dtype=np.float32) / 255.0
+                t = compute_threshold(gray01, cfg.binarize_method, cfg.binarize_threshold)
+                cutoff = t * 255.0
+                save_image = gray.point(lambda p: 0 if p < cutoff else 255).convert("RGB")
+            else:
+                save_image = image
+            save_image.save(self._images_dir / filename, format="PNG")
+
+        # Save SDF (always computed from the original image, independent of PNG binarization)
         sdf_npy_file: str | None = None
         sdf_png_file: str | None = None
         if cfg.sdf_format != "none":
-            arr = np.array(image.convert("L"), dtype=np.float32) / 255.0
-            sdf = binary_image_to_sdf(arr, max_dist=cfg.sdf_max_dist)
+            arr = np.asarray(gray, dtype=np.float32) / 255.0
+            sdf_t = compute_threshold(arr, cfg.sdf_binarize_method, cfg.sdf_binarize_threshold)
+            sdf = binary_image_to_sdf(arr, max_dist=cfg.sdf_max_dist, binarize_threshold=sdf_t)
 
             if cfg.sdf_format in ("npy", "both"):
                 npy_name = f"{stem}.npy"

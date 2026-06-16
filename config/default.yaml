@@ -26,5 +26,9 @@ recursive: false          # search font_dir recursively for font files
 
 # Output format
 save_png: true            # save rendered PNG images to images/
+binarize_method: none     # PNG binarization: none | threshold | otsu
+binarize_threshold: 0.5   # used when binarize_method=threshold (0.0-1.0)
 sdf_format: none          # save Signed Distance Field: none | npy | png | both
 sdf_max_dist: 10.0        # SDF clipping distance in pixels (controls border softness)
+sdf_binarize_method: threshold  # SDF stroke detection: threshold | otsu
+sdf_binarize_threshold: 0.5     # used when sdf_binarize_method=threshold (0.0-1.0)

@@ -36,8 +36,12 @@ def _config_from_dict(d: dict) -> PipelineConfig:
     )
     writer = WriterConfig(
         save_png=d.get("save_png", True),
+        binarize_method=d.get("binarize_method", "none"),
+        binarize_threshold=d.get("binarize_threshold", 0.5),
         sdf_format=d.get("sdf_format", "none"),
         sdf_max_dist=d.get("sdf_max_dist", 10.0),
+        sdf_binarize_method=d.get("sdf_binarize_method", "threshold"),
+        sdf_binarize_threshold=d.get("sdf_binarize_threshold", 0.5),
     )
     return PipelineConfig(
         charset=d["charset"],
@@ -87,6 +91,16 @@ def main():
         help="Override number of parallel workers",
     )
     parser.add_argument(
+        "--binarize-method",
+        choices=["none", "threshold", "otsu"],
+        help="Binarize saved PNG images (default: none)",
+    )
+    parser.add_argument(
+        "--binarize-threshold",
+        type=float,
+        help="Threshold for --binarize-method threshold, in [0, 1] (default: 0.5)",
+    )
+    parser.add_argument(
         "--sdf-format",
         choices=["none", "npy", "png", "both"],
         help="SDF output format (default: none)",
@@ -95,6 +109,16 @@ def main():
         "--sdf-max-dist",
         type=float,
         help="SDF clipping distance in pixels (default: 10.0)",
+    )
+    parser.add_argument(
+        "--sdf-binarize-method",
+        choices=["threshold", "otsu"],
+        help="SDF stroke detection method (default: threshold)",
+    )
+    parser.add_argument(
+        "--sdf-binarize-threshold",
+        type=float,
+        help="Threshold for --sdf-binarize-method threshold, in [0, 1] (default: 0.5)",
     )
     parser.add_argument(
         "--no-png",
@@ -135,10 +159,18 @@ def main():
             config_dict["output_dir"] = args.output_dir
         if args.workers:
             config_dict["workers"] = args.workers
+        if args.binarize_method:
+            config_dict["binarize_method"] = args.binarize_method
+        if args.binarize_threshold is not None:
+            config_dict["binarize_threshold"] = args.binarize_threshold
         if args.sdf_format:
             config_dict["sdf_format"] = args.sdf_format
         if args.sdf_max_dist is not None:
             config_dict["sdf_max_dist"] = args.sdf_max_dist
+        if args.sdf_binarize_method:
+            config_dict["sdf_binarize_method"] = args.sdf_binarize_method
+        if args.sdf_binarize_threshold is not None:
+            config_dict["sdf_binarize_threshold"] = args.sdf_binarize_threshold
         if args.no_png:
             config_dict["save_png"] = False
 

@@ -10,6 +10,7 @@ TTF/OTFなどのフォントファイルからOCR・文字認識用の画像デ�
 - **Multilingual support**: ASCII, hiragana, katakana, CJK, Greek, Cyrillic, and custom character sets
 - **Flexible rendering**: configurable image size, font size, colors, padding
 - **Overflow handling**: skip, shrink, or scale glyphs that don't fit
+- **Optional binarization**: threshold or Otsu binarization of saved PNGs and SDF stroke detection (independent settings, extensible registry)
 - **Parallel processing**: multi-threaded font processing with progress tracking
 - **Reproducible output**: deterministic generation with configurable random seeds
 - **Structured metadata**: JSONL records converted to Parquet format
@@ -89,6 +90,37 @@ min_font_size: 8            # lower bound for font size when overflow=shrink
 bbox_method: textbbox       # bounding box method: textbbox | pixel
 workers: 4                  # number of parallel worker threads
 recursive: false            # search font_dir recursively for font files
+
+# Output format
+save_png: true              # save rendered PNG images
+binarize_method: none       # PNG binarization: none | threshold | otsu
+binarize_threshold: 0.5     # used when binarize_method=threshold (0.0-1.0)
+sdf_format: none            # SDF output: none | npy | png | both
+sdf_max_dist: 10.0          # SDF clipping distance in pixels
+sdf_binarize_method: threshold  # SDF stroke detection: threshold | otsu
+sdf_binarize_threshold: 0.5     # used when sdf_binarize_method=threshold (0.0-1.0)
+```
+
+### Binarization
+
+PNG binarization and SDF stroke detection are **fully independent**:
+
+- `binarize_method` / `binarize_threshold` binarize the **saved PNG only** (luminance
+  threshold, preserves fg/bg polarity).
+- `sdf_binarize_method` / `sdf_binarize_threshold` set the stroke threshold used **inside
+  the SDF**. The SDF is always computed from the original anti-aliased image, never from
+  the binarized PNG.
+
+Both support `threshold` (fixed) and `otsu` (Otsu's method). New strategies can be added
+by registering a `(gray, threshold) -> float` function in `src/font2dataset/binarize.py`.
+
+```bash
+# Binarize saved PNGs with Otsu's method
+python script/generate.py --config config/default.yaml --binarize-method otsu
+
+# Compute SDF with Otsu stroke detection (PNGs left anti-aliased)
+python script/generate.py --config config/default.yaml \
+  --sdf-format png --sdf-binarize-method otsu
 ```
 
 ## Character Set Specifications
@@ -342,9 +374,11 @@ transform = transforms.Compose([
   counts vary across fonts. Check `df.groupby("char").size()` before training.
 - Font licenses govern whether the generated **dataset** can be distributed.
   Verify licenses before publishing.
-- **Images are not binarized.** Pillow's text rendering applies anti-aliasing,
-  so glyph edges contain intermediate grey values, not strict 0/255 pixels.
-  Apply thresholding if your model or pipeline requires strictly binary input:
+- **Images are anti-aliased by default.** Pillow's text rendering applies anti-aliasing,
+  so glyph edges contain intermediate grey values, not strict 0/255 pixels. If your model
+  or pipeline requires strictly binary input, enable binarization at generation time via
+  `binarize_method: threshold` or `binarize_method: otsu` (see [Binarization](#binarization)).
+  Alternatively, threshold after the fact:
   ```python
   from PIL import Image
   img = Image.open(path).convert("L")

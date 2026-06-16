@@ -18,6 +18,15 @@ def test_image():
     return Image.new("RGB", (64, 64), color="white")
 
 
+@pytest.fixture
+def gradient_image():
+    """An RGB image with a horizontal gradient (intermediate grey values)."""
+    row = np.linspace(0, 255, 64, dtype=np.uint8)
+    arr = np.repeat(row[np.newaxis, :], 64, axis=0)
+    rgb = np.stack([arr, arr, arr], axis=-1)
+    return Image.fromarray(rgb, mode="RGB")
+
+
 class TestWriterConfig:
     """Tests for WriterConfig dataclass."""
 
@@ -304,3 +313,66 @@ class TestSDFOutput:
             writer.write("A", test_image, "./fonts/test.ttf", index=0)
 
         assert not (Path(tmp_output) / "sdf").exists()
+
+
+class TestBinarizeOutput:
+    """Tests for PNG binarization and SDF binarization independence."""
+
+    def _load_pixels(self, tmp_output, filename):
+        img = Image.open(Path(tmp_output) / "images" / filename).convert("L")
+        return np.asarray(img)
+
+    def test_threshold_produces_binary_png(self, tmp_output, gradient_image):
+        """binarize_method='threshold' yields only 0 and 255 pixels."""
+        config = WriterConfig(output_dir=tmp_output, binarize_method="threshold", binarize_threshold=0.5)
+        with DatasetWriter(config) as writer:
+            fn = writer.write("A", gradient_image, "./fonts/test.ttf", index=0)
+
+        pixels = self._load_pixels(tmp_output, fn)
+        assert set(np.unique(pixels)).issubset({0, 255})
+        assert pixels.min() == 0 and pixels.max() == 255
+
+    def test_none_keeps_intermediate_values(self, tmp_output, gradient_image):
+        """binarize_method='none' (default) preserves intermediate grey values."""
+        config = WriterConfig(output_dir=tmp_output)
+        with DatasetWriter(config) as writer:
+            fn = writer.write("A", gradient_image, "./fonts/test.ttf", index=0)
+
+        pixels = self._load_pixels(tmp_output, fn)
+        intermediate = (pixels > 0) & (pixels < 255)
+        assert intermediate.any()
+
+    def test_otsu_produces_binary_png(self, tmp_output, gradient_image):
+        """binarize_method='otsu' yields only 0 and 255 pixels."""
+        config = WriterConfig(output_dir=tmp_output, binarize_method="otsu")
+        with DatasetWriter(config) as writer:
+            fn = writer.write("A", gradient_image, "./fonts/test.ttf", index=0)
+
+        pixels = self._load_pixels(tmp_output, fn)
+        assert set(np.unique(pixels)).issubset({0, 255})
+
+    def test_png_binarization_does_not_affect_sdf(self, tmp_output, gradient_image):
+        """SDF is computed from the original image regardless of PNG binarization."""
+        # Binarized PNG
+        cfg_bin = WriterConfig(output_dir=tmp_output, binarize_method="otsu", sdf_format="npy")
+        with DatasetWriter(cfg_bin) as writer:
+            writer.write("A", gradient_image, "./fonts/test.ttf", index=0)
+        sdf_bin = np.load(Path(tmp_output) / "sdf" / "0041_test_000.npy")
+
+        # Non-binarized PNG, same SDF settings
+        cfg_plain = WriterConfig(output_dir=tmp_output, binarize_method="none", sdf_format="npy")
+        with DatasetWriter(cfg_plain) as writer:
+            writer.write("A", gradient_image, "./fonts/test.ttf", index=0)
+        sdf_plain = np.load(Path(tmp_output) / "sdf" / "0041_test_000.npy")
+
+        np.testing.assert_array_equal(sdf_bin, sdf_plain)
+        assert sdf_bin.min() >= 0.0 and sdf_bin.max() <= 1.0
+
+    def test_sdf_otsu_method(self, tmp_output, gradient_image):
+        """sdf_binarize_method='otsu' produces a valid SDF in [0, 1]."""
+        config = WriterConfig(output_dir=tmp_output, sdf_format="npy", sdf_binarize_method="otsu")
+        with DatasetWriter(config) as writer:
+            writer.write("A", gradient_image, "./fonts/test.ttf", index=0)
+
+        arr = np.load(Path(tmp_output) / "sdf" / "0041_test_000.npy")
+        assert arr.min() >= 0.0 and arr.max() <= 1.0

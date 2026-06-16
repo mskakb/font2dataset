@@ -16,18 +16,21 @@ except ImportError:
 def binary_image_to_sdf(
     image: np.ndarray,
     max_dist: float = 10.0,
+    binarize_threshold: float = 0.5,
 ) -> np.ndarray:
     """Convert a font image to a Signed Distance Field (SDF).
 
-    Pixels with value < 0.5 are treated as stroke; >= 0.5 as background.
-    This matches the default renderer output (black stroke on white background,
-    normalized to [0, 1]).
+    Pixels with value < binarize_threshold are treated as stroke; the rest as
+    background. The default 0.5 matches the renderer output (black stroke on
+    white background, normalized to [0, 1]).
 
     Args:
         image: Grayscale or RGB image as a float32 numpy array in [0, 1].
                Shape (H, W), (1, H, W), or (3, H, W).
         max_dist: Clipping distance in pixels. Raw SDF values beyond ±max_dist
                   are clipped before mapping to [0, 1].
+        binarize_threshold: Stroke detection threshold in [0, 1]. Pixels below
+                  this value are treated as stroke.
 
     Returns:
         SDF image as float32 ndarray in [0, 1] with the same shape as input:
@@ -43,7 +46,7 @@ def binary_image_to_sdf(
     else:
         arr2d = arr
 
-    stroke_mask = arr2d < 0.5
+    stroke_mask = arr2d < binarize_threshold
 
     if stroke_mask.all():
         sdf_01 = np.ones_like(arr2d, dtype=np.float32)

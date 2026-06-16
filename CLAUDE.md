@@ -36,11 +36,12 @@ font2dataset/
 - Renders character images from font files using Pillow
 - Parameterises font size, background colour, foreground colour, and padding
 - Handles overflow via `skip` / `shrink` / `scale` modes
-- **Output images are NOT binarized.** Pillow's `draw.text()` applies anti-aliasing,
-  so glyph edges contain intermediate grey values. If strict binary pixels (0/255) are
-  required, apply thresholding after loading the image.
-  / 出力画像は**厳密な2値化なし**。Pillowのテキスト描画はアンチエイリアスを施すため、
-  文字輪郭に中間グレー値が含まれる。0/255の厳密な2値が必要な場合は利用側でしきい値処理を行う。
+- **Renderer output is NOT binarized.** Pillow's `draw.text()` applies anti-aliasing,
+  so glyph edges contain intermediate grey values. Optional binarization is applied at
+  **save time** via `WriterConfig.binarize_method` (`threshold` / `otsu`), not in the renderer.
+  / レンダラー出力は**厳密な2値化なし**。Pillowのテキスト描画はアンチエイリアスを施すため、
+  文字輪郭に中間グレー値が含まれる。二値化が必要な場合は保存時に
+  `WriterConfig.binarize_method`（`threshold` / `otsu`）で適用する（レンダラー側では行わない）。
 
 ### charset.py
 - Defines character sets (ASCII, hiragana, katakana, CJK, etc.)
@@ -59,7 +60,17 @@ font2dataset/
   ```
 - Stores ML-relevant font metadata (`font_family`, `font_style`) from the font's name table.
 - Does **not** store license, designer, or other administrative metadata.
+- **Binarization** (via `binarize.py`): two fully independent settings.
+  - `binarize_method` / `binarize_threshold` — binarize the saved PNG only (luminance threshold, polarity-preserving).
+  - `sdf_binarize_method` / `sdf_binarize_threshold` — stroke-detection threshold inside the SDF.
+  - The SDF is always computed from the original anti-aliased image, never from the binarized PNG.
+  - Methods (`threshold`, `otsu`) live in a registry in `binarize.py`; add a new one there.
 - HuggingFace `datasets` format: future work (priority 7).
+
+### binarize.py
+- Registry of grayscale-to-threshold strategies: `threshold` (fixed) and `otsu` (Otsu's method).
+- `compute_threshold(gray, method, threshold)` returns a scalar threshold in [0, 1]; pixels below it are stroke.
+- Extensible: register a new `(gray, threshold) -> float` function in `THRESHOLD_METHODS`.
 
 ### pipeline.py
 - Processes all combinations of charset × fonts
@@ -82,6 +93,13 @@ min_font_size: 8           # lower bound for font size when overflow=shrink
 bbox_method: textbbox      # bounding box method: textbbox | pixel
 workers: 4                 # parallel worker count
 recursive: false           # search font_dir recursively for font files
+save_png: true             # save rendered PNG images
+binarize_method: none      # PNG binarization: none | threshold | otsu
+binarize_threshold: 0.5    # used when binarize_method=threshold (0.0-1.0)
+sdf_format: none           # SDF output: none | npy | png | both
+sdf_max_dist: 10.0         # SDF clipping distance in pixels
+sdf_binarize_method: threshold   # SDF stroke detection: threshold | otsu
+sdf_binarize_threshold: 0.5      # used when sdf_binarize_method=threshold (0.0-1.0)
 ```
 
 ## Dependencies / 依存ライブラリ
