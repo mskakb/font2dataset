@@ -16,7 +16,7 @@ import logging
 import shutil
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace as dc_replace
 from pathlib import Path
 
 import yaml
@@ -41,6 +41,7 @@ class PipelineConfig:
         font_dir: Directory containing TTF/OTF font files.
         output_dir: Output directory for images and metadata.
         render: Rendering configuration (image size, colors, etc.).
+        writer: Output format configuration (PNG, SDF, etc.).
         workers: Number of parallel worker threads.
         recursive: Search font_dir recursively for font files.
     """
@@ -48,6 +49,7 @@ class PipelineConfig:
     font_dir: str | Path | list[str | Path]
     output_dir: str | Path = "./output"
     render: RenderConfig = field(default_factory=RenderConfig)
+    writer: WriterConfig = field(default_factory=WriterConfig)
     workers: int = 4
     recursive: bool = False
 
@@ -105,6 +107,9 @@ def _save_config(config: "PipelineConfig", output_dir: Path) -> None:
         "bbox_method": config.render.bbox_method,
         "workers": config.workers,
         "recursive": config.recursive,
+        "save_png": config.writer.save_png,
+        "sdf_format": config.writer.sdf_format,
+        "sdf_max_dist": config.writer.sdf_max_dist,
     }
     with open(output_dir / "config.yaml", "w", encoding="utf-8") as f:
         yaml.dump(d, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
@@ -222,8 +227,8 @@ def run_pipeline(config: PipelineConfig) -> PipelineResult:
             elapsed_seconds=time.time() - start_time,
         )
 
-    # Initialize writer
-    writer_config = WriterConfig(output_dir=config.output_dir)
+    # Initialize writer (inherit SDF/PNG settings; override output_dir from pipeline)
+    writer_config = dc_replace(config.writer, output_dir=config.output_dir)
     all_results = []
     failed_fonts = []
 

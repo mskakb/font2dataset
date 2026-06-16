@@ -23,3 +23,8 @@ bbox_method: textbbox     # bounding box method: textbbox | pixel
 # Parallel processing
 workers: 4                # number of worker threads
 recursive: false          # search font_dir recursively for font files
+
+# Output format
+save_png: true            # save rendered PNG images to images/
+sdf_format: none          # save Signed Distance Field: none | npy | png | both
+sdf_max_dist: 10.0        # SDF clipping distance in pixels (controls border softness)

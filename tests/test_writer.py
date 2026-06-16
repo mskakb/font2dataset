@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from threading import Thread
 
+import numpy as np
 import pyarrow.parquet as pq
 import pytest
 from PIL import Image
@@ -201,3 +202,105 @@ class TestDatasetWriter:
         for rec in records:
             assert "char" in rec
             assert "file" in rec
+
+
+class TestSDFOutput:
+    """Tests for SDF output functionality."""
+
+    def test_sdf_npy_creates_file(self, tmp_output, test_image):
+        """sdf_format='npy' creates .npy file in sdf/ directory."""
+        config = WriterConfig(output_dir=tmp_output, sdf_format="npy")
+        with DatasetWriter(config) as writer:
+            writer.write("A", test_image, "./fonts/test.ttf", index=0)
+
+        sdf_files = list((Path(tmp_output) / "sdf").glob("*.npy"))
+        assert len(sdf_files) == 1
+        assert sdf_files[0].name == "0041_test_000.npy"
+
+    def test_sdf_npy_shape_and_range(self, tmp_output, test_image):
+        """SDF .npy file has correct shape and values in [0, 1]."""
+        config = WriterConfig(output_dir=tmp_output, sdf_format="npy")
+        with DatasetWriter(config) as writer:
+            writer.write("A", test_image, "./fonts/test.ttf", index=0)
+
+        arr = np.load(Path(tmp_output) / "sdf" / "0041_test_000.npy")
+        assert arr.ndim == 2
+        assert arr.shape == (64, 64)
+        assert arr.dtype == np.float32
+        assert arr.min() >= 0.0
+        assert arr.max() <= 1.0
+
+    def test_sdf_png_creates_file(self, tmp_output, test_image):
+        """sdf_format='png' creates PNG in sdf/ directory."""
+        config = WriterConfig(output_dir=tmp_output, sdf_format="png")
+        with DatasetWriter(config) as writer:
+            writer.write("A", test_image, "./fonts/test.ttf", index=0)
+
+        sdf_files = list((Path(tmp_output) / "sdf").glob("*.png"))
+        assert len(sdf_files) == 1
+        assert sdf_files[0].name == "0041_test_000.png"
+
+    def test_sdf_both_creates_npy_and_png(self, tmp_output, test_image):
+        """sdf_format='both' creates both .npy and .png SDF files."""
+        config = WriterConfig(output_dir=tmp_output, sdf_format="both")
+        with DatasetWriter(config) as writer:
+            writer.write("A", test_image, "./fonts/test.ttf", index=0)
+
+        sdf_dir = Path(tmp_output) / "sdf"
+        assert (sdf_dir / "0041_test_000.npy").exists()
+        assert (sdf_dir / "0041_test_000.png").exists()
+
+    def test_sdf_npy_record_has_sdf_field(self, tmp_output, test_image):
+        """JSONL record includes sdf_npy_file when sdf_format='npy'."""
+        config = WriterConfig(output_dir=tmp_output, sdf_format="npy")
+        with DatasetWriter(config) as writer:
+            writer.write("A", test_image, "./fonts/test.ttf", index=0)
+
+        with open(Path(tmp_output) / "metadata.jsonl") as f:
+            record = json.loads(f.readline())
+
+        assert "sdf_npy_file" in record
+        assert record["sdf_npy_file"] == "0041_test_000.npy"
+        assert "sdf_png_file" not in record
+
+    def test_sdf_png_record_has_sdf_field(self, tmp_output, test_image):
+        """JSONL record includes sdf_png_file when sdf_format='png'."""
+        config = WriterConfig(output_dir=tmp_output, sdf_format="png")
+        with DatasetWriter(config) as writer:
+            writer.write("A", test_image, "./fonts/test.ttf", index=0)
+
+        with open(Path(tmp_output) / "metadata.jsonl") as f:
+            record = json.loads(f.readline())
+
+        assert "sdf_png_file" in record
+        assert record["sdf_png_file"] == "0041_test_000.png"
+        assert "sdf_npy_file" not in record
+
+    def test_sdf_both_record_has_both_fields(self, tmp_output, test_image):
+        """JSONL record includes both sdf fields when sdf_format='both'."""
+        config = WriterConfig(output_dir=tmp_output, sdf_format="both")
+        with DatasetWriter(config) as writer:
+            writer.write("A", test_image, "./fonts/test.ttf", index=0)
+
+        with open(Path(tmp_output) / "metadata.jsonl") as f:
+            record = json.loads(f.readline())
+
+        assert "sdf_npy_file" in record
+        assert "sdf_png_file" in record
+
+    def test_no_png_skips_images_dir_write(self, tmp_output, test_image):
+        """save_png=False does not write to images/ directory."""
+        config = WriterConfig(output_dir=tmp_output, save_png=False, sdf_format="npy")
+        with DatasetWriter(config) as writer:
+            writer.write("A", test_image, "./fonts/test.ttf", index=0)
+
+        assert not (Path(tmp_output) / "images").exists()
+        assert (Path(tmp_output) / "sdf" / "0041_test_000.npy").exists()
+
+    def test_no_sdf_by_default(self, tmp_output, test_image):
+        """Default config does not create sdf/ directory."""
+        config = WriterConfig(output_dir=tmp_output)
+        with DatasetWriter(config) as writer:
+            writer.write("A", test_image, "./fonts/test.ttf", index=0)
+
+        assert not (Path(tmp_output) / "sdf").exists()

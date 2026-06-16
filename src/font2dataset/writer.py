@@ -10,19 +10,26 @@ Thread-safe for concurrent calls to write().
 
 import json
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Generator
+from typing import Literal
 
+import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
+from PIL import Image as _PIL
 from PIL.Image import Image
+
+from .sdf import binary_image_to_sdf
 
 
 @dataclass
 class WriterConfig:
     """Configuration for dataset output."""
-    output_dir: str | Path
+    output_dir: str | Path = "./output"
+    save_png: bool = True
+    sdf_format: Literal["none", "npy", "png", "both"] = "none"
+    sdf_max_dist: float = 10.0
 
 
 class DatasetWriter:
@@ -30,6 +37,7 @@ class DatasetWriter:
 
     Manages:
     - Image file output (PNG format in a flat `images/` subdirectory)
+    - SDF file output (npy and/or grayscale PNG in `sdf/` subdirectory)
     - Metadata recording (JSONL with streaming append, Parquet on finalization)
     - Context manager lifecycle (open on enter, close on exit)
     """
@@ -39,6 +47,7 @@ class DatasetWriter:
         self._config = config
         self._output_dir = Path(config.output_dir)
         self._images_dir = self._output_dir / "images"
+        self._sdf_dir = self._output_dir / "sdf"
         self._jsonl_path = self._output_dir / "metadata.jsonl"
         self._jsonl_file = None
         self._lock = threading.Lock()
@@ -47,9 +56,12 @@ class DatasetWriter:
         """Create output directories and open JSONL file for writing.
 
         Overwrites existing metadata.jsonl (ensures reproducibility on re-run).
-        Images directory is created with exist_ok=True.
+        Images and sdf directories are created with exist_ok=True.
         """
-        self._images_dir.mkdir(parents=True, exist_ok=True)
+        if self._config.save_png:
+            self._images_dir.mkdir(parents=True, exist_ok=True)
+        if self._config.sdf_format != "none":
+            self._sdf_dir.mkdir(parents=True, exist_ok=True)
         self._jsonl_file = open(self._jsonl_path, "w", encoding="utf-8")
 
     def write(
@@ -72,7 +84,7 @@ class DatasetWriter:
             font_style: Font subfamily name from the font's name table (e.g. "Regular")
 
         Returns:
-            Generated filename (e.g., "3042_NotoSansJP-Regular_000.png")
+            Generated PNG filename (e.g., "3042_NotoSansJP-Regular_000.png")
 
         Raises:
             IOError: If image save or JSONL write fails
@@ -81,19 +93,38 @@ class DatasetWriter:
         if len(char) != 1:
             raise ValueError(f"Expected single character, got {char!r}")
 
-        # Generate filename
+        cfg = self._config
         unicode_hex = f"{ord(char):04x}"
         font_stem = Path(font_path).stem
         index_str = f"{index:03d}"
-        filename = f"{unicode_hex}_{font_stem}_{index_str}.png"
+        stem = f"{unicode_hex}_{font_stem}_{index_str}"
+        filename = f"{stem}.png"
 
-        # Save image (thread-safe: unique filename per char/font/index)
-        image_path = self._images_dir / filename
-        image.save(image_path, format="PNG")
+        # Save regular PNG
+        if cfg.save_png:
+            image.save(self._images_dir / filename, format="PNG")
+
+        # Save SDF
+        sdf_npy_file: str | None = None
+        sdf_png_file: str | None = None
+        if cfg.sdf_format != "none":
+            arr = np.array(image.convert("L"), dtype=np.float32) / 255.0
+            sdf = binary_image_to_sdf(arr, max_dist=cfg.sdf_max_dist)
+
+            if cfg.sdf_format in ("npy", "both"):
+                npy_name = f"{stem}.npy"
+                np.save(self._sdf_dir / npy_name, sdf)
+                sdf_npy_file = npy_name
+
+            if cfg.sdf_format in ("png", "both"):
+                png_name = f"{stem}.png"
+                sdf_uint8 = (sdf * 255).clip(0, 255).astype(np.uint8)
+                _PIL.fromarray(sdf_uint8, mode="L").save(self._sdf_dir / png_name)
+                sdf_png_file = png_name
 
         # Record metadata (requires lock: shared JSONL file)
         codepoint = ord(char)
-        record = {
+        record: dict = {
             "file": filename,
             "char": char,
             "unicode": f"U+{codepoint:04X}",
@@ -102,6 +133,11 @@ class DatasetWriter:
             "font_family": font_family,
             "font_style": font_style,
         }
+        if sdf_npy_file is not None:
+            record["sdf_npy_file"] = sdf_npy_file
+        if sdf_png_file is not None:
+            record["sdf_png_file"] = sdf_png_file
+
         with self._lock:
             self._jsonl_file.write(json.dumps(record, ensure_ascii=False) + "\n")
             self._jsonl_file.flush()
@@ -120,7 +156,6 @@ class DatasetWriter:
         Raises:
             IOError: If reading JSONL or writing Parquet fails
         """
-        # Read JSONL records
         records = []
         with open(self._jsonl_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -128,7 +163,6 @@ class DatasetWriter:
                 if line:
                     records.append(json.loads(line))
 
-        # Convert to Parquet
         table = pa.Table.from_pylist(records)
         parquet_path = self._output_dir / "metadata.parquet"
         pq.write_table(table, parquet_path)

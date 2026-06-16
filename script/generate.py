@@ -19,6 +19,7 @@ import yaml
 
 from font2dataset.pipeline import PipelineConfig, run_pipeline
 from font2dataset.renderer import RenderConfig
+from font2dataset.writer import WriterConfig
 
 
 def _config_from_dict(d: dict) -> PipelineConfig:
@@ -33,11 +34,17 @@ def _config_from_dict(d: dict) -> PipelineConfig:
         min_font_size=d.get("min_font_size", 8),
         bbox_method=d.get("bbox_method", "textbbox"),
     )
+    writer = WriterConfig(
+        save_png=d.get("save_png", True),
+        sdf_format=d.get("sdf_format", "none"),
+        sdf_max_dist=d.get("sdf_max_dist", 10.0),
+    )
     return PipelineConfig(
         charset=d["charset"],
         font_dir=d["font_dir"],
         output_dir=d.get("output_dir", "./output"),
         render=render,
+        writer=writer,
         workers=d.get("workers", 4),
         recursive=d.get("recursive", False),
     )
@@ -80,6 +87,21 @@ def main():
         help="Override number of parallel workers",
     )
     parser.add_argument(
+        "--sdf-format",
+        choices=["none", "npy", "png", "both"],
+        help="SDF output format (default: none)",
+    )
+    parser.add_argument(
+        "--sdf-max-dist",
+        type=float,
+        help="SDF clipping distance in pixels (default: 10.0)",
+    )
+    parser.add_argument(
+        "--no-png",
+        action="store_true",
+        help="Skip saving regular PNG images (useful with --sdf-format)",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Enable DEBUG level logging",
@@ -113,6 +135,12 @@ def main():
             config_dict["output_dir"] = args.output_dir
         if args.workers:
             config_dict["workers"] = args.workers
+        if args.sdf_format:
+            config_dict["sdf_format"] = args.sdf_format
+        if args.sdf_max_dist is not None:
+            config_dict["sdf_max_dist"] = args.sdf_max_dist
+        if args.no_png:
+            config_dict["save_png"] = False
 
         # Validate required fields
         if "charset" not in config_dict:
